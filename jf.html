@@ -21,9 +21,6 @@
             width: 100%;
             max-width: 1200px;
             display: flex;
-            align-content: flex-start;
-            justify-content: space-around;
-            align-items: flex-start;
         }
         .user-table, .leaderboard {
             width: 48%;
@@ -179,6 +176,7 @@
             <div class="option-section">
                 <h3>选择项:</h3>
                 <div class="option-buttons" id="reasonButtons"></div>
+                <input type="text" id="customReason" placeholder="自定义项">
             </div>
             <div class="option-section">
                 <h3>选择分值:</h3>
@@ -189,6 +187,7 @@
                     <button onclick="selectValue(4)">4</button>
                     <button onclick="selectValue(5)">5</button>
                 </div>
+                <input type="number" id="customValue" placeholder="自定义分值">
             </div>
             <label for="password">密码:</label>
             <input type="password" id="password" placeholder="请输入密码">
@@ -296,6 +295,7 @@
             buttons.forEach(button => {
                 button.classList.toggle('selected', button.textContent === reason);
             });
+            document.getElementById('customReason').value = ''; // 清空自定义输入
         }
 
         function selectValue(value) {
@@ -304,6 +304,7 @@
             buttons.forEach(button => {
                 button.classList.toggle('selected', parseInt(button.textContent) === value);
             });
+            document.getElementById('customValue').value = ''; // 清空自定义输入
         }
 
         function closeModal() {
@@ -312,17 +313,22 @@
 
         function submitPoints() {
             const password = document.getElementById('password').value;
+            const customReason = document.getElementById('customReason').value.trim();
+            const customValue = parseInt(document.getElementById('customValue').value);
 
             if (password !== correctPassword) {
                 alert('密码错误');
                 return;
             }
 
-            if (selectedReason && selectedValue) {
-                changePoints(currentUser, isAdding ? selectedValue : -selectedValue, selectedReason);
+            const finalReason = customReason || selectedReason;
+            const finalValue = !isNaN(customValue) ? customValue : selectedValue;
+
+            if (finalReason && finalValue) {
+                changePoints(currentUser, isAdding ? finalValue : -finalValue, finalReason);
                 closeModal();
             } else {
-                alert('请选择有效的项和值');
+                alert('请选择或输入有效的项和值');
             }
         }
 
