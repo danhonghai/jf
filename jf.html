@@ -10,7 +10,10 @@
             background-color: #e9ecef;
             margin: 0;
             padding: 0;
-            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         .container {
             background-color: #fff;
@@ -18,12 +21,15 @@
             border-radius: 12px;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
             text-align: center;
-            width: 100%;
+            width: 90%;
             max-width: 1200px;
             display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         .user-table, .leaderboard {
-            width: 48%;
+            width: 100%;
+            margin-bottom: 20px;
         }
         h1 {
             color: #333;
@@ -100,7 +106,8 @@
             padding: 20px;
             border-radius: 10px;
             text-align: left;
-            width: 400px;
+            width: 90%;
+            max-width: 400px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .option-section {
@@ -136,6 +143,14 @@
             box-sizing: border-box;
             border: 1px solid #ccc;
             border-radius: 5px;
+        }
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+            .user-table, .leaderboard {
+                width: 48%;
+            }
         }
     </style>
 </head>
@@ -209,10 +224,15 @@
             const leaderboardList = document.getElementById('leaderboardList');
             userList.innerHTML = ''; // 清空列表
             leaderboardList.innerHTML = ''; // 清空排行榜
-            const userPoints = users.map(user => ({
-                name: user,
-                points: parseInt(localStorage.getItem(user)) || 0
-            }));
+            const userPoints = users.map(user => {
+                let points = parseInt(localStorage.getItem(user)) || 50; // 设置初始积分为50
+                if (!localStorage.getItem(`${user}-history`)) {
+                    // 如果没有历史记录，添加初始积分记录
+                    const history = [{ reason: '初始积分', amount: 50, date: new Date().toLocaleString() }];
+                    localStorage.setItem(`${user}-history`, JSON.stringify(history));
+                }
+                return { name: user, points };
+            });
 
             // 按积分降序排序
             userPoints.sort((a, b) => b.points - a.points);
@@ -234,7 +254,7 @@
                 const historyRow = document.createElement('tr');
                 historyRow.innerHTML = `
                     <td colspan="4">
-                        <div class="history" id="${user.name}-history"></div>
+                        <div class="history" style="display:none;" id="${user.name}-history"></div>
                     </td>
                 `;
                 userList.appendChild(historyRow);
