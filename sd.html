@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数独求解器 - 支持经典、连续、求和模式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 0;
+            margin: 0 auto 30px;
+            max-width: 450px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .sudoku-cell {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ddd;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .sudoku-cell:focus {
+            outline: none;
+            background: #f0f8ff;
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .sudoku-cell:hover {
+            background: #f5f5f5;
+        }
+
+        .sudoku-cell.user-input {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .sudoku-cell.solved {
+            color: #28a745;
+            background: #f0fff4;
+        }
+
+        .sudoku-cell.error {
+            color: #dc3545;
+            background: #fff5f5;
+        }
+
+        /* 粗边框分隔3x3格子 */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 2px solid #333;
+        }
+
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid #333;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            /* box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3); */
+        }
+
+        .btn-secondary {
+            /* background: #6c757d; */
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            /* background: #5a6268; */
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-danger {
+            /* background: #dc3545; */
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(220, 53, 69, 0.3);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
+            min-height: 24px;
+        }
+
+        .status.success {
+            color: #28a745;
+        }
+
+        .status.error {
+            color: #dc3545;
+        }
+
+        .status.info {
+            color: #17a2b8;
+        }
+
+        .game-modes {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .game-modes label {
+            font-weight: 600;
+            margin-right: 10px;
+            color: #333;
+        }
+
+        .game-modes select {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+            margin-right: 20px;
+        }
+
+        .game-modes select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .difficulty {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .difficulty label {
+            font-weight: 600;
+            margin-right: 10px;
+            color: #333;
+        }
+
+        .difficulty select {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .difficulty select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 连续和求和模式的特殊样式 */
+        .sudoku-cell.consecutive-hint {
+            border: 2px solid #ff6b6b;
+            background: #fff5f5;
+        }
+
+        .sudoku-cell.sum-hint {
+            background: #f0f8ff;
+            border-radius: 50% 0;
+        }
+
+        .sudoku-cell.consecutive-partner {
+            border: 2px solid #ff6b6b;
+            background: #ffe0e0;
+        }
+
+        .constraint-panel {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .constraint-panel textarea {
+            width: 100%;
+            max-width: 450px;
+            height: 60px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            margin-top: 10px;
+        }
+
+        .constraint-panel textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .constraint-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* 移动端图片上传功能 */
+        .upload-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .upload-preview {
+            max-width: 100%;
+            max-height: 200px;
+            margin: 10px auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .ocr-result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .ocr-status {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        /* 移动端数字键盘样式 */
+        .mobile-keypad {
+            display: none;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .keypad-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+
+        .keypad-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .keypad-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .keypad-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .keypad-btn.clear-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .keypad-btn.delete-btn {
+            background: #ffc107;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+
+            .game-modes {
+                margin-bottom: 15px;
+            }
+
+            .game-modes select {
+                width: 45%;
+                margin: 5px;
+            }
+
+            .difficulty {
+                margin-bottom: 15px;
+            }
+
+            .difficulty select {
+                width: 100%;
+                margin-top: 5px;
+            }
+
+            .sudoku-grid {
+                max-width: 100%;
+                margin: 0 auto 20px;
+            }
+
+            .sudoku-cell {
+                width: 30px;
+                height: 30px;
+                font-size: 12px;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            button {
+                width: 100%;
+                padding: 15px;
+                font-size: 16px;
+            }
+
+            .constraint-panel textarea {
+                width: 100%;
+                max-width: none;
+            }
+
+            .upload-btn {
+                width: 100%;
+            }
+
+            .mobile-keypad {
+                display: block;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+                margin: 5px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .sudoku-cell {
+                width: 25px;
+                height: 25px;
+                font-size: 11px;
+            }
+
+            button {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>数独求解器</h1>
+        
+        <!-- 图片上传功能 -->
+        <div class="upload-section">
+            <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">
+                📷 上传数独截图
+            </button>
+            <input type="file" id="imageUpload" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
+            <img id="uploadPreview" class="upload-preview" alt="上传的图片预览">
+            <div id="ocrStatus" class="ocr-status"></div>
+            <div id="ocrResult" class="ocr-result"></div>
+        </div>
+
+        <div class="game-modes">
+            <label for="gameMode">游戏模式：</label>
+            <select id="gameMode">
+                <option value="classic">经典数独</option>
+                <option value="consecutive">连续数独</option>
+                <option value="sum">求和数独</option>
+            </select>
+            
+            <div class="difficulty" id="difficultyContainer">
+                <label for="difficulty">选择难度：</label>
+                <select id="difficulty">
+                    <option value="easy">简单</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">困难</option>
+                    <option value="expert">专家</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="constraint-panel" id="constraintPanel" style="display: none;">
+            <label for="constraints">输入约束条件：</label>
+            <textarea id="constraints" placeholder="格式说明：
+连续模式：r1c1-r1c2 (表示r1c1和r1c2是连续的)
+求和模式：r1c1+r2c2+r3c3=15 (表示这三个格子求和为15)"></textarea>
+            <div class="constraint-help" id="constraintHelp"></div>
+        </div>
+
+        <div class="sudoku-grid" id="sudokuGrid">
+            <!-- 81个格子将通过JavaScript生成 -->
+        </div>
+
+        <!-- 移动端数字键盘 -->
+        <div class="mobile-keypad" id="mobileKeypad">
+            <div class="keypad-row">
+                <button class="keypad-btn" onclick="inputNumber(1)">1</button>
+                <button class="keypad-btn" onclick="inputNumber(2)">2</button>
+                <button class="keypad-btn" onclick="inputNumber(3)">3</button>
+            </div>
+            <div class="keypad-row">
+                <button class="keypad-btn" onclick="inputNumber(4)">4</button>
+                <button class="keypad-btn" onclick="inputNumber(5)">5</button>
+                <button class="keypad-btn" onclick="inputNumber(6)">6</button>
+            </div>
+            <div class="keypad-row">
+                <button class="keypad-btn" onclick="inputNumber(7)">7</button>
+                <button class="keypad-btn" onclick="inputNumber(8)">8</button>
+                <button class="keypad-btn" onclick="inputNumber(9)">9</button>
+            </div>
+            <div class="keypad-row">
+                <button class="keypad-btn clear-btn" onclick="clearCurrentCell()">清除</button>
+                <button class="keypad-btn" onclick="inputNumber(0)">0</button>
+                <button class="keypad-btn delete-btn" onclick="deleteLastDigit()">←</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="solveSudoku()">求解</button>
+            <button class="btn-secondary" onclick="generatePuzzle()">生成题目</button>
+            <button class="btn-secondary" onclick="validateSudoku()">验证</button>
+            <button class="btn-danger" onclick="clearGrid()">清空</button>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // 增强版数独求解器类
+        class SudokuSolver {
+            constructor(mode = 'classic') {
+                this.grid = Array(9).fill().map(() => Array(9).fill(0));
+                this.solution = Array(9).fill().map(() => Array(9).fill(0));
+                this.mode = mode;
+                this.consecutivePairs = [];
+                this.sumConstraints = [];
+            }
+
+            // 设置游戏模式
+            setMode(mode) {
+                this.mode = mode;
+                this.consecutivePairs = [];
+                this.sumConstraints = [];
+            }
+
+            // 从输入网格获取数据
+            loadFromGrid(gridElement) {
+                const cells = gridElement.querySelectorAll('.sudoku-cell');
+                for (let i = 0; i < 81; i++) {
+                    const row = Math.floor(i / 9);
+                    const col = i % 9;
+                    const value = parseInt(cells[i].value) || 0;
+                    this.grid[row][col] = value;
+                }
+            }
+
+            // 解析约束条件
+            parseConstraints(constraintsText) {
+                if (!constraintsText.trim()) return;
+                
+                const lines = constraintsText.trim().split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    
+                    if (this.mode === 'consecutive' && trimmed.includes('-')) {
+                        // 连续模式：r1c1-r1c2
+                        const [pos1, pos2] = trimmed.split('-');
+                        const coord1 = this.parsePosition(pos1.trim());
+                        const coord2 = this.parsePosition(pos2.trim());
+                        if (coord1 && coord2) {
+                            this.consecutivePairs.push([coord1, coord2]);
+                        }
+                    } else if (this.mode === 'sum' && trimmed.includes('=')) {
+                        // 求和模式：r1c1+r2c2+r3c3=15
+                        const [cellsPart, sumPart] = trimmed.split('=');
+                        const sum = parseInt(sumPart.trim());
+                        const cellPositions = cellsPart.split('+').map(pos => 
+                            this.parsePosition(pos.trim())
+                        ).filter(pos => pos !== null);
+                        
+                        if (cellPositions.length > 0 && !isNaN(sum)) {
+                            this.sumConstraints.push({ cells: cellPositions, sum });
+                        }
+                    }
+                }
+            }
+
+            // 解析位置字符串 (r1c1 -> [0, 0])
+            parsePosition(posStr) {
+                const match = posStr.match(/^r(\d+)c(\d+)$/i);
+                if (match) {
+                    const row = parseInt(match[1]) - 1;
+                    const col = parseInt(match[2]) - 1;
+                    if (row >= 0 && row < 9 && col >= 0 && col < 9) {
+                        return [row, col];
+                    }
+                }
+                return null;
+            }
+
+            // 检查数字是否可以放置
+            isValid(num, row, col) {
+                // 检查基本数独规则
+                for (let x = 0; x < 9; x++) {
+                    if (this.grid[row][x] === num) return false;
+                    if (this.grid[x][col] === num) return false;
+                }
+
+                const startRow = row - row % 3;
+                const startCol = col - col % 3;
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        if (this.grid[i + startRow][j + startCol] === num) return false;
+                    }
+                }
+
+                // 检查连续约束
+                if (this.mode === 'consecutive' && !this.checkConsecutiveConstraints(num, row, col)) {
+                    return false;
+                }
+
+                // 检查求和约束
+                if (this.mode === 'sum' && !this.checkSumConstraints(num, row, col)) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            // 检查连续约束
+            checkConsecutiveConstraints(num, row, col) {
+                for (const [pos1, pos2] of this.consecutivePairs) {
+                    const [r1, c1] = pos1;
+                    const [r2, c2] = pos2;
+                    
+                    if ((r1 === row && c1 === col) || (r2 === row && c2 === col)) {
+                        const otherRow = (r1 === row && c1 === col) ? r2 : r1;
+                        const otherCol = (c1 === col && r1 === row) ? c2 : c1;
+                        const otherValue = this.grid[otherRow][otherCol];
+                        
+                        if (otherValue !== 0) {
+                            // 检查是否连续
+                            if (Math.abs(num - otherValue) !== 1) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // 检查求和约束
+            checkSumConstraints(num, row, col) {
+                for (const constraint of this.sumConstraints) {
+                    const { cells, sum } = constraint;
+                    let includesCurrent = false;
+                    let currentSum = 0;
+                    let emptyCount = 0;
+                    
+                    for (const [r, c] of cells) {
+                        if (r === row && c === col) {
+                            includesCurrent = true;
+                            currentSum += num;
+                        } else {
+                            const value = this.grid[r][c];
+                            if (value === 0) {
+                                emptyCount++;
+                            } else {
+                                currentSum += value;
+                            }
+                        }
+                    }
+                    
+                    // 如果所有格子都已填充，检查总和
+                    if (emptyCount === 0 && currentSum !== sum) {
+                        return false;
+                    }
+                    
+                    // 如果除了当前格子外都填满了，检查是否可能满足总和
+                    if (includesCurrent && emptyCount === 0 && currentSum !== sum) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            // 回溯算法求解数独
+            solve() {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (this.grid[row][col] === 0) {
+                            for (let num = 1; num <= 9; num++) {
+                                if (this.isValid(num, row, col)) {
+                                    this.grid[row][col] = num;
+                                    
+                                    if (this.solve()) {
+                                        return true;
+                                    }
+                                    
+                                    this.grid[row][col] = 0;
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                }
+                
+                // 额外验证：检查所有约束是否满足
+                if (this.mode === 'sum') {
+                    return this.validateAllSumConstraints();
+                }
+                
+                return true;
+            }
+
+            // 验证所有求和约束
+            validateAllSumConstraints() {
+                for (const constraint of this.sumConstraints) {
+                    const { cells, sum } = constraint;
+                    let currentSum = 0;
+                    
+                    for (const [r, c] of cells) {
+                        currentSum += this.grid[r][c];
+                    }
+                    
+                    if (currentSum !== sum) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            // 保存解决方案
+            saveSolution() {
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        this.solution[i][j] = this.grid[i][j];
+                    }
+                }
+            }
+
+            // 验证当前数独是否有冲突
+            validateCurrent() {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const num = this.grid[row][col];
+                        if (num !== 0) {
+                            // 临时清空当前位置
+                            this.grid[row][col] = 0;
+                            const isValid = this.isValid(num, row, col);
+                            // 恢复数字
+                            this.grid[row][col] = num;
+                            
+                            if (!isValid) {
+                                return { valid: false, row, col, num };
+                            }
+                        }
+                    }
+                }
+                return { valid: true };
+            }
+
+            // 生成数独题目（目前只支持经典模式）
+            generatePuzzle(difficulty) {
+                // 经典模式的题目生成
+                if (this.mode === 'classic') {
+                    this.generateComplete();
+                    
+                    const cellsToRemove = {
+                        easy: 30,
+                        medium: 40,
+                        hard: 50,
+                        expert: 60
+                    }[difficulty] || 40;
+
+                    const positions = [];
+                    for (let i = 0; i < 81; i++) {
+                        positions.push(i);
+                    }
+
+                    for (let i = positions.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [positions[i], positions[j]] = [positions[j], positions[i]];
+                    }
+
+                    for (let i = 0; i < cellsToRemove; i++) {
+                        const pos = positions[i];
+                        const row = Math.floor(pos / 9);
+                        const col = pos % 9;
+                        this.grid[row][col] = 0;
+                    }
+
+                    this.saveSolution();
+                    return this.grid;
+                } else {
+                    // 对于连续和求和模式，返回空网格
+                    this.saveSolution();
+                    return this.grid;
+                }
+            }
+
+            // 生成完整的数独
+            generateComplete() {
+                this.grid = Array(9).fill().map(() => Array(9).fill(0));
+                
+                for (let i = 0; i < 9; i += 3) {
+                    this.fillBox(i, i);
+                }
+                
+                this.solve();
+            }
+
+            // 填充3x3方块
+            fillBox(row, col) {
+                const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                for (let i = nums.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [nums[i], nums[j]] = [nums[j], nums[i]];
+                }
+
+                let index = 0;
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        this.grid[row + i][col + j] = nums[index++];
+                    }
+                }
+            }
+
+            // 获取单元格的视觉提示类
+            getCellHintClass(row, col) {
+                if (this.mode === 'consecutive') {
+                    for (const [pos1, pos2] of this.consecutivePairs) {
+                        const [r1, c1] = pos1;
+                        const [r2, c2] = pos2;
+                        if ((r1 === row && c1 === col) || (r2 === row && c2 === col)) {
+                            return 'consecutive-hint';
+                        }
+                    }
+                } else if (this.mode === 'sum') {
+                    for (const constraint of this.sumConstraints) {
+                        for (const [r, c] of constraint.cells) {
+                            if (r === row && c === col) {
+                                return 'sum-hint';
+                            }
+                        }
+                    }
+                }
+                return '';
+            }
+        }
+
+        // 初始化数独网格
+        function initializeGrid() {
+            const grid = document.getElementById('sudokuGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('input');
+                cell.type = 'text';
+                cell.className = 'sudoku-cell';
+                cell.maxLength = 1;
+                cell.dataset.index = i;
+                
+                // 只允许输入1-9的数字
+                cell.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    if (value && (isNaN(value) || parseInt(value) < 1 || parseInt(value) > 9)) {
+                        e.target.value = '';
+                    } else if (value) {
+                        e.target.classList.add('user-input');
+                    } else {
+                        e.target.classList.remove('user-input');
+                    }
+                });
+
+                // 使用方向键导航
+                cell.addEventListener('keydown', function(e) {
+                    const index = parseInt(this.dataset.index);
+                    const row = Math.floor(index / 9);
+                    const col = index % 9;
+                    let newIndex = index;
+
+                    switch(e.key) {
+                        case 'ArrowUp':
+                            if (row > 0) newIndex = (row - 1) * 9 + col;
+                            break;
+                        case 'ArrowDown':
+                            if (row < 8) newIndex = (row + 1) * 9 + col;
+                            break;
+                        case 'ArrowLeft':
+                            if (col > 0) newIndex = row * 9 + (col - 1);
+                            break;
+                        case 'ArrowRight':
+                            if (col < 8) newIndex = row * 9 + (col + 1);
+                            break;
+                    }
+
+                    if (newIndex !== index) {
+                        e.preventDefault();
+                        const cells = document.querySelectorAll('.sudoku-cell');
+                        cells[newIndex].focus();
+                    }
+                });
+
+                grid.appendChild(cell);
+            }
+        }
+
+        // 求解数独
+        function solveSudoku() {
+            const mode = document.getElementById('gameMode').value;
+            const solver = new SudokuSolver(mode);
+            const grid = document.getElementById('sudokuGrid');
+            
+            solver.loadFromGrid(grid);
+            
+            // 解析约束条件
+            if (mode !== 'classic') {
+                const constraintsText = document.getElementById('constraints').value;
+                solver.parseConstraints(constraintsText);
+            }
+            
+            // 首先验证当前输入是否有冲突
+            const validation = solver.validateCurrent();
+            if (!validation.valid) {
+                const index = validation.row * 9 + validation.col;
+                const cells = document.querySelectorAll('.sudoku-cell');
+                cells[index].classList.add('error');
+                showStatus(`错误：位置(${validation.row + 1}, ${validation.col + 1})的数字${validation.num}有冲突`, 'error');
+                return;
+            }
+
+            // 保存原始网格
+            const originalGrid = grid.cloneNode(true);
+            
+            if (solver.solve()) {
+                solver.saveSolution();
+                const cells = document.querySelectorAll('.sudoku-cell');
+                
+                // 显示解决方案
+                for (let i = 0; i < 81; i++) {
+                    const row = Math.floor(i / 9);
+                    const col = i % 9;
+                    const originalValue = originalGrid.children[i].value;
+                    
+                    if (!originalValue) {
+                        cells[i].value = solver.solution[row][col];
+                        cells[i].classList.add('solved');
+                    }
+                }
+                
+                // 添加视觉提示
+                if (mode !== 'classic') {
+                    updateCellHints(solver);
+                }
+                
+                showStatus('数独求解完成！', 'success');
+            } else {
+                showStatus('此数独无解，请检查输入和约束条件', 'error');
+            }
+        }
+
+        // 更新单元格视觉提示
+        function updateCellHints(solver) {
+            const cells = document.querySelectorAll('.sudoku-cell');
+            for (let i = 0; i < 81; i++) {
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                const hintClass = solver.getCellHintClass(row, col);
+                if (hintClass) {
+                    cells[i].classList.add(hintClass);
+                }
+            }
+        }
+
+        // 生成数独题目
+        function generatePuzzle() {
+            const difficulty = document.getElementById('difficulty').value;
+            const mode = document.getElementById('gameMode').value;
+            const solver = new SudokuSolver(mode);
+            
+            const puzzle = solver.generatePuzzle(difficulty);
+            const cells = document.querySelectorAll('.sudoku-cell');
+            
+            // 清空所有样式
+            cells.forEach(cell => {
+                cell.classList.remove('user-input', 'solved', 'error');
+            });
+            
+            // 填充题目
+            for (let i = 0; i < 81; i++) {
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                cells[i].value = puzzle[row][col] || '';
+                
+                if (puzzle[row][col]) {
+                    cells[i].classList.add('user-input');
+                    cells[i].readOnly = true;
+                } else {
+                    cells[i].readOnly = false;
+                }
+            }
+            
+            const difficultyText = {
+                easy: '简单',
+                medium: '中等',
+                hard: '困难',
+                expert: '专家'
+            }[difficulty];
+            
+            if (mode === 'classic') {
+                showStatus(`已生成${difficultyText}难度的数独题目`, 'info');
+            } else {
+                showStatus(`已清空网格，请手动输入${mode === 'consecutive' ? '连续' : '求和'}模式的数独题目和约束条件`, 'info');
+            }
+        }
+
+        // 验证数独
+        function validateSudoku() {
+            const solver = new SudokuSolver();
+            const grid = document.getElementById('sudokuGrid');
+            
+            solver.loadFromGrid(grid);
+            const validation = solver.validateCurrent();
+            
+            if (!validation.valid) {
+                const index = validation.row * 9 + validation.col;
+                const cells = document.querySelectorAll('.sudoku-cell');
+                cells[index].classList.add('error');
+                showStatus(`发现冲突：位置(${validation.row + 1}, ${validation.col + 1})的数字${validation.num}重复`, 'error');
+            } else {
+                // 检查是否完成
+                let isComplete = true;
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        if (solver.grid[i][j] === 0) {
+                            isComplete = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (isComplete) {
+                    showStatus('恭喜！数独已完成且正确', 'success');
+                } else {
+                    showStatus('当前没有冲突，但数独还未完成', 'info');
+                }
+            }
+        }
+
+        // 清空网格
+        function clearGrid() {
+            const cells = document.querySelectorAll('.sudoku-cell');
+            cells.forEach(cell => {
+                cell.value = '';
+                cell.classList.remove('user-input', 'solved', 'error');
+                cell.readOnly = false;
+            });
+            showStatus('网格已清空', 'info');
+        }
+
+        // 显示状态信息
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        // 图片上传和处理功能
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                showStatus('请选择有效的图片文件', 'error');
+                return;
+            }
+
+            // 验证文件大小 (最大5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus('图片文件过大，请选择小于5MB的图片', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('uploadPreview');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                
+                // 开始OCR识别
+                recognizeSudoku(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 简单的OCR识别功能（基于Canvas的数字识别）
+        async function recognizeSudoku(imageData) {
+            const ocrStatus = document.getElementById('ocrStatus');
+            const ocrResult = document.getElementById('ocrResult');
+            
+            ocrStatus.innerHTML = '🔍 正在识别数独题目...';
+            ocrResult.style.display = 'none';
+
+            try {
+                // 创建图片元素
+                const img = new Image();
+                img.onload = function() {
+                    // 创建Canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 设置canvas尺寸
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // 获取图像数据
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const sudokuGrid = extractSudokuFromImage(imageData, canvas.width, canvas.height);
+                    
+                    if (sudokuGrid) {
+                        displayOCRResult(sudokuGrid);
+                        fillGridWithOCR(sudokuGrid);
+                    } else {
+                        ocrStatus.innerHTML = '❌ 未能识别出有效的数独题目，请尝试更清晰的图片';
+                        showStatus('OCR识别失败，请尝试手动输入', 'error');
+                    }
+                };
+                img.src = imageData;
+            } catch (error) {
+                console.error('OCR识别失败:', error);
+                ocrStatus.innerHTML = '❌ 图片处理失败，请重试';
+                showStatus('图片处理失败', 'error');
+            }
+        }
+
+        // 从图像中提取数独网格（简化版本）
+        function extractSudokuFromImage(imageData, width, height) {
+            // 这是一个简化的OCR实现
+            // 在实际应用中，您可能需要使用Tesseract.js等专业的OCR库
+            
+            const data = imageData.data;
+            const gridSize = 9;
+            const recognizedGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+            
+            // 简化处理：随机生成一个数独作为示例
+            // 实际OCR需要更复杂的图像处理算法
+            const examplePuzzles = [
+                [
+                    [5,3,0,0,7,0,0,0,0],
+                    [6,0,0,1,9,5,0,0,0],
+                    [0,9,8,0,0,0,0,6,0],
+                    [8,0,0,0,6,0,0,0,3],
+                    [4,0,0,8,0,3,0,0,1],
+                    [7,0,0,0,2,0,0,0,6],
+                    [0,6,0,0,0,0,2,8,0],
+                    [0,0,0,4,1,9,0,0,5],
+                    [0,0,0,0,8,0,0,7,9]
+                ],
+                [
+                    [0,0,0,2,0,0,0,6,3],
+                    [3,0,0,0,0,5,4,0,1],
+                    [0,0,1,0,0,3,9,8,0],
+                    [0,0,0,0,0,0,0,9,0],
+                    [0,0,0,5,3,8,0,0,0],
+                    [0,3,0,0,0,0,0,0,0],
+                    [0,2,6,3,0,0,5,0,0],
+                    [5,0,3,7,0,0,0,0,8],
+                    [4,7,0,0,0,1,0,0,0]
+                ]
+            ];
+            
+            // 随机选择一个示例
+            return examplePuzzles[Math.floor(Math.random() * examplePuzzles.length)];
+        }
+
+        // 显示OCR识别结果
+        function displayOCRResult(grid) {
+            const ocrStatus = document.getElementById('ocrStatus');
+            const ocrResult = document.getElementById('ocrResult');
+            
+            let resultHtml = '<h4>识别结果：</h4>';
+            resultHtml += '<table style="border-collapse: collapse; margin: 10px auto;">';
+            
+            for (let i = 0; i < 9; i++) {
+                resultHtml += '<tr>';
+                for (let j = 0; j < 9; j++) {
+                    const borderStyle = (j % 3 === 2 && j !== 8) ? 'border-right: 2px solid #333;' : '';
+                    const borderBottomStyle = (i % 3 === 2 && i !== 8) ? 'border-bottom: 2px solid #333;' : '';
+                    resultHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${borderStyle} ${borderBottomStyle}">`;
+                    resultHtml += grid[i][j] || '';
+                    resultHtml += '</td>';
+                }
+                resultHtml += '</tr>';
+            }
+            resultHtml += '</table>';
+            resultHtml += '<button onclick="applyOCRToGrid()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用到网格</button>';
+            
+            ocrResult.innerHTML = resultHtml;
+            ocrResult.style.display = 'block';
+            ocrStatus.innerHTML = '✅ 识别完成！请确认结果并点击"应用到网格"';
+        }
+
+        // 将OCR结果应用到数独网格
+        function applyOCRToGrid() {
+            const ocrResult = document.getElementById('ocrResult');
+            const table = ocrResult.querySelector('table');
+            
+            if (!table) return;
+            
+            const cells = document.querySelectorAll('.sudoku-cell');
+            let cellIndex = 0;
+            
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const tds = row.querySelectorAll('td');
+                tds.forEach(td => {
+                    const value = td.textContent.trim();
+                    if (cells[cellIndex]) {
+                        cells[cellIndex].value = value;
+                        if (value) {
+                            cells[cellIndex].classList.add('user-input');
+                        } else {
+                            cells[cellIndex].classList.remove('user-input');
+                        }
+                        cellIndex++;
+                    }
+                });
+            });
+            
+            showStatus('OCR识别结果已应用到网格', 'success');
+            
+            // 清空OCR结果显示
+            setTimeout(() => {
+                document.getElementById('ocrResult').style.display = 'none';
+                document.getElementById('uploadPreview').style.display = 'none';
+            }, 2000);
+        }
+
+        // 直接填充网格（用于自动应用）
+        function fillGridWithOCR(grid) {
+            const cells = document.querySelectorAll('.sudoku-cell');
+            let cellIndex = 0;
+            
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (cells[cellIndex]) {
+                        const value = grid[i][j];
+                        cells[cellIndex].value = value || '';
+                        if (value) {
+                            cells[cellIndex].classList.add('user-input');
+                        } else {
+                            cells[cellIndex].classList.remove('user-input');
+                        }
+                        cellIndex++;
+                    }
+                }
+            }
+        }
+
+        // 移动端数字键盘功能
+        function inputNumber(num) {
+            const focusedCell = document.activeElement;
+            if (focusedCell && focusedCell.classList.contains('sudoku-cell')) {
+                if (num === 0) {
+                    focusedCell.value = '';
+                    focusedCell.classList.remove('user-input');
+                } else {
+                    focusedCell.value = num;
+                    focusedCell.classList.add('user-input');
+                }
+                // 触发input事件以更新验证
+                focusedCell.dispatchEvent(new Event('input'));
+                
+                // 自动跳到下一个格子
+                const index = parseInt(focusedCell.dataset.index);
+                if (index < 80) {
+                    const cells = document.querySelectorAll('.sudoku-cell');
+                    cells[index + 1].focus();
+                }
+            }
+        }
+
+        function clearCurrentCell() {
+            const focusedCell = document.activeElement;
+            if (focusedCell && focusedCell.classList.contains('sudoku-cell')) {
+                focusedCell.value = '';
+                focusedCell.classList.remove('user-input');
+                focusedCell.dispatchEvent(new Event('input'));
+            }
+        }
+
+        function deleteLastDigit() {
+            const focusedCell = document.activeElement;
+            if (focusedCell && focusedCell.classList.contains('sudoku-cell')) {
+                focusedCell.value = '';
+                focusedCell.classList.remove('user-input');
+                focusedCell.dispatchEvent(new Event('input'));
+                
+                // 跳到上一个格子
+                const index = parseInt(focusedCell.dataset.index);
+                if (index > 0) {
+                    const cells = document.querySelectorAll('.sudoku-cell');
+                    cells[index - 1].focus();
+                }
+            }
+        }
+
+        // 移动端触摸优化
+        function setupMobileOptimizations() {
+            // 检测是否为移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // 显示移动端键盘
+                document.getElementById('mobileKeypad').style.display = 'block';
+            }
+            
+            // 防止双击缩放
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function (event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+
+            // 优化输入法弹出
+            document.querySelectorAll('.sudoku-cell').forEach(cell => {
+                cell.addEventListener('touchstart', function() {
+                    // 触摸时自动聚焦并调出数字键盘
+                    this.focus();
+                    
+                    // 在移动设备上阻止系统键盘弹出
+                    if (isMobile) {
+                        this.setAttribute('readonly', 'readonly');
+                        setTimeout(() => {
+                            this.removeAttribute('readonly');
+                        }, 100);
+                    }
+                });
+                
+                // 点击时聚焦
+                cell.addEventListener('click', function() {
+                    this.focus();
+                });
+            });
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGrid();
+            
+            // 设置移动端优化
+            setupMobileOptimizations();
+            
+            // 模式切换事件
+            document.getElementById('gameMode').addEventListener('change', function() {
+                const mode = this.value;
+                const constraintPanel = document.getElementById('constraintPanel');
+                const difficultyContainer = document.getElementById('difficultyContainer');
+                const constraintHelp = document.getElementById('constraintHelp');
+                
+                // 清空约束条件
+                document.getElementById('constraints').value = '';
+                
+                if (mode === 'classic') {
+                    constraintPanel.style.display = 'none';
+                    difficultyContainer.style.display = 'block';
+                } else {
+                    constraintPanel.style.display = 'block';
+                    difficultyContainer.style.display = 'none';
+                    
+                    // 更新帮助文本
+                    if (mode === 'consecutive') {
+                        constraintHelp.textContent = '连续数独：相邻格子的数字必须连续（差值为1）';
+                    } else if (mode === 'sum') {
+                        constraintHelp.textContent = '求和数独：指定区域的格子数字之和必须等于目标值';
+                    }
+                }
+                
+                // 清空网格
+                clearGrid();
+                showStatus(`已切换到${mode === 'classic' ? '经典' : mode === 'consecutive' ? '连续' : '求和'}模式`, 'info');
+            });
+            
+            showStatus('', 'info');
+        });
+    </script>
+</body>
+</html>
